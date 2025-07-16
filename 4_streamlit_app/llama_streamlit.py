@@ -129,15 +129,14 @@ Why it fits: <1–2 lines explaining relevance to the company’s domain (or) in
 **Amount**: <Amount>  
 **Deadline**: <Deadline>  
 **Contact**: <Contact person, email, or organization — not the URL>  
-**For more information**: <Program URL>  
 **Next Steps**:  
-- Step 1: <Visit the official call page or other action>  
+- Step 1: <Visit the official call page>  
 - Step 2: <Provide one or two helpful next steps, e.g., form a consortium, prepare documents>  
-- Step 3: (Optional) <Any extra steps from the program's procedure>  
+- Step 3: (Optional) <Any extra steps from the program's procedure>
 
 If any field like **Amount**, **Deadline**, **Eligibility**, **Procedure**, **Contact**, or **Domain** is missing, either omit the line or say “Not specified”.
 
-Use simple bullet points under **Next Steps**. Only list the top 2 or 3 programs — not all 5.
+Make sure **Next Steps** are formatted as real bullet points on new lines — not in a single line. Use simple and readable language. List only the top 2 or 3 matching programs — not all 5.
 """
 
         # Step 6: LLaMA 3.2 generation
