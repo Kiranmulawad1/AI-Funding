@@ -2,7 +2,7 @@
 
 This project is part of a master's thesis focused on building an intelligent system that helps startups and SMEs discover **relevant public funding opportunities** in Germany.
 
-Users can upload a **PDF company profile** or enter a **text-based query**, and the system:
+Users can  enter a **text-based query** or upload a **PDF company profile** , and the system:
 - Extracts and embeds the input
 - Performs semantic search on a vector store (Pinecone)
 - Uses GPT to recommend matching grants
