@@ -1,0 +1,69 @@
+
+The company described itself as:
+
+"We are an AI company focused on AI for robotics. We are focusing on research right now."
+
+Here are the top 5 most relevant public funding programs in Germany, based on a semantic search match to their needs:
+
+**1. MASTER 2nd Open Call**
+   - **Description**: MASTER supports projects that develop and validate innovative XR-based educational content for robotics training. The aim is to create practical training scenarios that promote the use of XR technologies in industrial robotics and give students and specialists access to modern learning tools.  Further information can be found here
+   - **Domain**: VR/XR
+   - **Eligibility**: Universities, research institutions, educational institutions, SMEs and large companies
+   - **Amount**: Up to 100,000 euros
+   - **Deadline**: June 12, 2025
+   - **For more information visit**: https://www.master-xr.eu/open-calls/open-call-2/
+
+**2. Promotion of interdisciplinary pilot projects on the topic of "Neurobiologically inspired artificial intelligence"**
+   - **Description**: Guideline for the funding of interdisciplinary pilot projects on the topic of "Neurobiologically inspired artificial intelligence" dated: 25.11.2024 Federal Ministry of Education and Research BAnz AT 04.12.2024 B5
+   - **Domain**: Research & Innovation (topic-specific)
+   - **Eligibility**: Research institution, university, company
+   - **Contact**: Name: DLR Projektträger, Email: ge@dlr.de, Phone: Tel: +49 0228 3821-1210, Address: 53227 Bonn
+   - **For more information visit**: https://www.foerderdatenbank.de/FDB/Content/DE/Foerderprogramm/Bund/BMBF/bmbf-neurobiologisch-inspirierte-ki.html
+
+**3. Funding for projects on the topic of "Application of artificial intelligence (AI) in drug discovery"**
+   - **Description**: Guideline for the funding of projects on the topic of "Application of artificial intelligence (AI) in drug discovery" dated: 19.02.2025 Federal Ministry of Education and Research BAnz AT 03.03.2025 B5
+   - **Domain**: Research & Innovation (topic-specific), Health & Social Affairs
+   - **Eligibility**: University, research institution, company, association/association
+   - **Contact**: Name: Projektträger Jülich (PtJ), Email: ptj@fz-juelich.de, Phone: Tel: +49 2461 61-2626, Address: 52425 Jülich
+   - **For more information visit**: https://www.foerderdatenbank.de/FDB/Content/DE/Foerderprogramm/Bund/BMBF/anwendung-ki-wirkstoffforschung.html
+
+**4. FORTIS 1st Open Call**
+   - **Description**: FORTIS supports projects that develop innovative solutions for safe, trustworthy and efficient human-robot interaction in industrial applications. The focus is on the integration of multimodal communication methods and digital twins to optimize collaboration between humans and robots in areas such as construction, maintenance and logistics. The aim is to promote practical technologies that improve interaction and increase productivity. Further information can be found here
+   - **Domain**: Human-robot interaction (HRI), multimodal communication, digital twins
+   - **Eligibility**: Consortia of 2-3 organizations: Start-ups, SMEs, mid-caps, research institutions, universities
+   - **Amount**: Up to 250,000 euros
+   - **Deadline**: June 04, 2025
+   - **For more information visit**: https://fortis-project.eu/open-call-1/
+
+**5. Funding of collaborative research projects in the fields of "software and algorithms with a focus on artificial intelligence and machine learning", "research data management" and "federated digital infrastructures" for the exploration of the universe and matter (ErUM)**
+   - **Description**: Directive on the funding of collaborative research projects in the fields of "Software and algorithms with a focus on artificial intelligence and machine learning", "Research data management" and "Federated digital infrastructures" for the exploration of the universe and matter (ErUM) of 30.09.2024
+   - **Domain**: Research & Innovation (topic-specific)
+   - **Eligibility**: Research institution, university, company
+   - **Contact**: Name: Projektträger DESY (PT.DESY), Email: pt@desy.de, Phone: Tel: +49 40 8998-3702, Address: 22607 Hamburg
+   - **For more information visit**: https://www.foerderdatenbank.de/FDB/Content/DE/Foerderprogramm/Bund/BMBF/software-algorithmen-ki-maschinelles-lernen.html
+
+
+Now:
+
+Please write a concise and professional recommendation containing **only the top 2–3 most relevant funding programs** in this format:
+
+Only select the top programs that most directly match the company’s domain, maturity stage (e.g., early-stage research), or funding needs. Ignore entries that are vague or poorly aligned.
+
+For each recommendation, follow this format exactly:
+
+1. <Program Name>  
+Why it fits: <1–2 lines explaining relevance to the company’s domain (or) industry (or) field of work>  
+**Description**: <1–3 sentence summary of what the program funds and its focus>  
+**Domain**: <Domain>  
+**Eligibility**: <Eligibility>  
+**Amount**: <Amount>  
+**Deadline**: <Deadline>  
+**Contact**: <Contact person, email, or organization — not the URL>  
+**Next Steps**:  
+- Step 1: <Visit the official call page>  
+- Step 2: <Provide one or two helpful next steps, e.g., form a consortium, prepare documents>  
+- Step 3: (Optional) <Any extra steps from the program's procedure>
+
+If any field like **Amount**, **Deadline**, **Eligibility**, **Procedure**, **Contact**, or **Domain** is missing, either omit the line or say “Not specified”.
+
+Make sure **Next Steps** are formatted as real bullet points on new lines — not in a single line. Use simple and readable language. List only the top 2 or 3 matching programs — not all 5.
