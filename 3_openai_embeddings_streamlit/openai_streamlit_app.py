@@ -19,7 +19,7 @@ PINECONE_ENV = os.getenv("PINECONE_ENV")
 assert OPENAI_API_KEY and PINECONE_API_KEY and PINECONE_ENV
 
 # Load data
-full_df = pd.read_csv("/Users/kiranmulawad/AI-Funding/2_preprocessing/data/merged_funding_data.csv")
+full_df = pd.read_csv("/Users/kiranmulawad/AI-Funding/data/merged_funding_data.csv")
 
 # Pinecone + OpenAI init
 pc = Pinecone(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
