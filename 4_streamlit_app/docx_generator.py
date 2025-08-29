@@ -1,49 +1,57 @@
-# funding_draft_generator.py
+# docx_generator.py
 
 import io
 from docx import Document
-from utils import present, program_name
 
-def build_draft_prompt(program: dict, query: str) -> str:
+def build_draft_prompt(profile, metadata):
     return f"""
-You are an assistant helping with funding applications in Germany.
+You are a professional grant writer AI assistant.
 
-Based on the following company info and grant metadata, draft a short application template
-that can be edited and submitted to the funder. Focus on clarity, structure, and next steps.
+Use the following company profile and the funding program details to generate a complete funding application draft.
 
-### Company Info:
-{query}
+## Company Profile
+- Company Name: {profile.get("company_name", "Not specified")}
+- Location: {profile.get("location", "Not specified")}
+- Industry: {profile.get("industry", "Not specified")}
+- Goals: {profile.get("goals", "Not specified")}
+- Project Idea: {profile.get("project_idea", "Not specified")}
+- Funding Need: {profile.get("funding_need", "Not specified")}
 
-### Grant Info:
-Program: {program_name(program)}
-Domain: {present(program.get("domain"))}
-Eligibility: {present(program.get("eligibility"))}
-Funding Amount: {present(program.get("amount"))}
-Deadline: {present(program.get("deadline"))}
-Location: {present(program.get("location"))}
-Contact: {present(program.get("contact"))}
-Procedure: {present(program.get("procedure"))}
+## Funding Program
+- Name: {metadata.get("name", "Not specified")}
+- Amount: {metadata.get("amount", "Not specified")}
+- Deadline: {metadata.get("deadline", "Not specified")}
+- Eligibility: {metadata.get("eligibility", "Not specified")}
 
-Give the result in structured paragraphs with headings: Introduction, Why This Grant, Next Steps, Checklist.
+## Format Output as:
+1. Title
+2. Executive Summary
+3. Objectives
+4. Innovation
+5. Budget Estimate
+6. Relevance to Program
+7. Contact Details
+
+Be professional and concise, but clear. Format the output as a ready-to-edit funding application.
 """
 
-def generate_funding_draft(program: dict, query: str, llm_client) -> io.BytesIO:
-    prompt = build_draft_prompt(program, query)
+def generate_funding_draft(metadata, profile, llm_client) -> io.BytesIO:
+    prompt = build_draft_prompt(profile, metadata)
     
     response = llm_client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}]
     )
-
     draft_text = response.choices[0].message.content.strip()
 
     doc = Document()
     doc.add_heading("Funding Application Draft", 0)
 
-    for section in draft_text.split("\n\n"):
-        if section.strip():
-            doc.add_paragraph(section.strip())
+    for para in draft_text.split("\n\n"):
+        if para.strip():
+            doc.add_paragraph(para.strip())
 
+    # Save to in-memory buffer
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
