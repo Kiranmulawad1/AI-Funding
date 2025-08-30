@@ -102,22 +102,39 @@ with st.expander("\U0001F553 Past Queries History (Last 20)"):
         st.rerun()
 
 # ------------------ Chat Input + Display ------------------
+
 user_text_input = st.chat_input("Describe your company or project...")
 query = user_text_input or st.session_state.pdf_summary_query
 st.session_state.pending_query = query
 
+# ✅ Prevent GPT re-run if any draft button was clicked
+if any(k.startswith("draft_") and st.session_state.get(k) for k in st.session_state.keys()):
+    query = None  # Block GPT query rerun on draft click
+
+# ✅ Display chat history
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
+# ✅ Only run GPT if new query is given (not draft click)
 if query:
     with st.chat_message("user"):
         st.markdown(query)
     st.session_state.chat_history.append({"role": "user", "content": query})
 
-    # ------------------ Follow-Up Mode ------------------
+    # Follow-up mode (if prior recommendation exists)
     if st.session_state.last_recommendation:
-        prompt = f"""You are a funding assistant chatbot.\n\nThe user previously received this recommendation:\n---\n{st.session_state.last_recommendation}\n---\n\nNow they asked:\n\"{query}\"\n\nPlease answer helpfully based on the programs shown above."""
+        prompt = f"""You are a funding assistant chatbot.
+
+The user previously received this recommendation:
+---
+{st.session_state.last_recommendation}
+---
+
+Now they asked:
+\"{query}\"
+
+Please answer helpfully based on the programs shown above."""
         with st.chat_message("assistant"):
             response = client.chat.completions.create(
                 model="gpt-4-turbo",
@@ -128,7 +145,7 @@ if query:
             st.session_state.chat_history.append({"role": "assistant", "content": answer})
 
     else:
-        with st.spinner("\U0001F50D Finding matching programs..."):
+        with st.spinner("🔍 Finding matching programs..."):
             results = query_funding_data(query)
 
         if not results:
@@ -158,43 +175,43 @@ if query:
             rec_count = len(re.findall(r"^\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
             save_query_to_postgres(query, source, rec_count, full_response)
 
-            # ✅ Split recommendations by numbered bullets
-            funding_blocks = re.split(r"\n(?=\d+\.\s)", full_response.strip())
+# ✅ Generate draft buttons using the stored GPT response
+if st.session_state.last_recommendation:
+    funding_blocks = re.split(r"\n(?=\d+\.\s)", st.session_state.last_recommendation.strip())
 
-            # ✅ Generate Draft Buttons for Each
-            for idx, block in enumerate(funding_blocks):
-                if st.button(f"📝 Generate Draft for Funding {idx + 1}", key=f"draft_{idx}"):
-                    st.info("Generating draft document...")
+    for idx, block in enumerate(funding_blocks):
+        if st.button(f"📝 Generate Draft for Funding {idx + 1}", key=f"draft_{idx}"):
+            st.info("Generating draft document...")
 
-                    def extract_field(pattern):
-                        match = re.search(pattern, block, re.DOTALL)
-                        return match.group(1).strip() if match else "Not specified"
+            def extract_field(pattern):
+                match = re.search(pattern, block, re.DOTALL)
+                return match.group(1).strip() if match else "Not specified"
 
-                    metadata = {
-                        "name": extract_field(r"\d+\.\s+(.+?)\s*\("),
-                        "domain": extract_field(r"\*\*Domain\*\*: (.+)"),
-                        "eligibility": extract_field(r"\*\*Eligibility\*\*: (.+)"),
-                        "amount": extract_field(r"\*\*Amount\*\*: (.+)"),
-                        "deadline": extract_field(r"\*\*Deadline\*\*: (.+)"),
-                        "location": extract_field(r"\*\*Location\*\*: (.+)"),
-                        "contact": extract_field(r"\*\*Contact\*\*: (.+)"),
-                        "procedure": extract_field(r"\*\*Next Steps\*\*:(.+)"),
-                    }
+            metadata = {
+                "name": extract_field(r"\d+\.\s+(.+?)\s*\("),
+                "domain": extract_field(r"\*\*Domain\*\*: (.+)"),
+                "eligibility": extract_field(r"\*\*Eligibility\*\*: (.+)"),
+                "amount": extract_field(r"\*\*Amount\*\*: (.+)"),
+                "deadline": extract_field(r"\*\*Deadline\*\*: (.+)"),
+                "location": extract_field(r"\*\*Location\*\*: (.+)"),
+                "contact": extract_field(r"\*\*Contact\*\*: (.+)"),
+                "procedure": extract_field(r"\*\*Next Steps\*\*:(.+)"),
+            }
 
-                    profile = {
-                        "company_name": "RoboAI Solutions",
-                        "location": "Rhineland-Palatinate, Germany",
-                        "industry": "AI-based Robotics",
-                        "goals": "Develop intelligent control systems for industrial robots",
-                        "project_idea": "Advanced AI-based Robotic Systems for Automation",
-                        "funding_need": "€200,000 for research and prototyping"
-                    }
+            profile = {
+                "company_name": "RoboAI Solutions",
+                "location": "Rhineland-Palatinate, Germany",
+                "industry": "AI-based Robotics",
+                "goals": "Develop intelligent control systems for industrial robots",
+                "project_idea": "Advanced AI-based Robotic Systems for Automation",
+                "funding_need": "€200,000 for research and prototyping"
+            }
 
-                    docx_data = generate_funding_draft(metadata, profile, client)
+            docx_data = generate_funding_draft(metadata, profile, client)
 
-                    st.download_button(
-                        label="📄 Download Draft (.docx)",
-                        data=docx_data,
-                        file_name=f"draft_funding_{idx + 1}.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    )
+            st.download_button(
+                label="📄 Download Draft (.docx)",
+                data=docx_data,
+                file_name=f"draft_funding_{idx + 1}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
