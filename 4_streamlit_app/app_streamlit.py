@@ -158,10 +158,6 @@ if query:
             rec_count = len(re.findall(r"^\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
             save_query_to_postgres(query, source, rec_count, full_response)
 
-            # ✅ Show GPT recommendation once (formatted)
-            with st.chat_message("assistant"):
-                st.markdown(full_response)
-
             # ✅ Split recommendations by numbered bullets
             funding_blocks = re.split(r"\n(?=\d+\.\s)", full_response.strip())
 

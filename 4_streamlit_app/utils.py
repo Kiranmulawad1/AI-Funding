@@ -3,9 +3,26 @@
 import re
 import pandas as pd
 
-def present(val):
-    if not val or str(val).strip().lower() in ["", "n/a", "null", "none", "not specified"]:
-        return "Not specified"
+def present(val, strict=False):
+    """
+    Convert value into a clean string for display.
+    If strict=True, return None for empty values instead of 'Not specified'.
+    """
+    if not val:
+        return None if strict else "Not specified"
+
+    s = str(val).strip().lower()
+    blocklist = [
+        "", "n/a", "null", "none", "not specified",
+        "location information not found",
+        "contact information not found",
+        "information not found",
+        "unknown", "missing"
+    ]
+
+    if s in blocklist:
+        return None if strict else "Not specified"
+
     return str(val).strip()
 
 def two_sentences(text, max_sentences=2):
