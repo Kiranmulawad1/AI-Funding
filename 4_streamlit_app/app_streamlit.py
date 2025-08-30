@@ -33,16 +33,11 @@ for key in ["chat_history", "last_recommendation", "pdf_summary_query", "pdf_has
         st.session_state[key] = None if key != "chat_history" else []
 
 # ------------------ Sidebar: PDF Upload + Reset ------------------
-# Generate unique file uploader key if not already present
 if "file_uploader_key" not in st.session_state:
     st.session_state["file_uploader_key"] = "default_uploader"
 
-# Step 2: Actual PDF file uploader with dynamic key
 st.sidebar.subheader("📄 Upload Company Profile (Optional)")
-uploaded_pdf = st.sidebar.file_uploader(
-    "Upload PDF", type=["pdf"], 
-    key=st.session_state["file_uploader_key"]
-)
+uploaded_pdf = st.sidebar.file_uploader("Upload PDF", type=["pdf"], key=st.session_state["file_uploader_key"])
 
 if uploaded_pdf:
     pdf_bytes = uploaded_pdf.getvalue()
@@ -57,29 +52,24 @@ if uploaded_pdf:
             messages=[{"role": "user", "content": prompt}]
         )
         st.session_state.pdf_summary_query = response.choices[0].message.content.strip()
-        st.sidebar.success("\u2705 Summary generated from PDF.")
+        st.sidebar.success("✅ Summary generated from PDF.")
 
-# ------------------ Reset Conversation ------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧠 Chat Options")
 if st.sidebar.button("🔄 Reset Conversation"):
     for key in [
         "chat_history", "last_recommendation", "pdf_summary_query",
-        "pending_query", "pdf_hash", "uploaded_pdf"
+        "pending_query", "pdf_hash", "uploaded_pdf", "suppress_query"
     ]:
         st.session_state.pop(key, None)
-
-    # Change file uploader key to trigger a UI reset
     st.session_state["file_uploader_key"] = str(uuid.uuid4())
-
     st.rerun()
-
 
 # ------------------ Header ------------------
 st.title("🤖 Smart AI Funding Finder")
 
 # ------------------ History Viewer ------------------
-with st.expander("\U0001F553 Past Queries History (Last 20)"):
+with st.expander("🕒 Past Queries History (Last 20)"):
     recent = get_recent_queries(limit=20)
     if not recent:
         st.info("No queries saved yet.")
@@ -102,39 +92,48 @@ with st.expander("\U0001F553 Past Queries History (Last 20)"):
         st.rerun()
 
 # ------------------ Chat Input + Display ------------------
-
 user_text_input = st.chat_input("Describe your company or project...")
+
+# ✅ Clear suppress flag if user enters a new message
+if user_text_input:
+    st.session_state.pop("suppress_query", None)
+
 query = user_text_input or st.session_state.pdf_summary_query
 st.session_state.pending_query = query
 
-# ✅ Prevent GPT re-run if any draft button was clicked
-if any(k.startswith("draft_") and st.session_state.get(k) for k in st.session_state.keys()):
-    query = None  # Block GPT query rerun on draft click
+# ✅ Block GPT rerun if draft/download is triggered
+if any(k.startswith("draft_") and st.session_state.get(k) for k in st.session_state.keys()) or st.session_state.get("suppress_query"):
+    query = None
 
 # ✅ Display chat history
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# ✅ Only run GPT if new query is given (not draft click)
+# ✅ Run GPT if valid new query
 if query:
     with st.chat_message("user"):
         st.markdown(query)
     st.session_state.chat_history.append({"role": "user", "content": query})
 
-    # Follow-up mode (if prior recommendation exists)
     if st.session_state.last_recommendation:
         prompt = f"""You are a funding assistant chatbot.
 
-The user previously received this recommendation:
+Below is a prior recommendation you gave based on public funding data:
 ---
 {st.session_state.last_recommendation}
 ---
 
-Now they asked:
+The user now asks a follow-up:
 \"{query}\"
 
-Please answer helpfully based on the programs shown above."""
+Rules:
+- Only use information from the recommendation text above.
+- If a field like contact or URL was not included, reply that it was not available in the data.
+- Do not make up or guess email addresses or contact info.
+- You can suggest visiting the official URL only if it was explicitly listed in the previous answer.
+
+Respond clearly and concisely, using markdown if helpful."""
         with st.chat_message("assistant"):
             response = client.chat.completions.create(
                 model="gpt-4-turbo",
@@ -143,7 +142,6 @@ Please answer helpfully based on the programs shown above."""
             answer = response.choices[0].message.content.strip()
             st.markdown(answer)
             st.session_state.chat_history.append({"role": "assistant", "content": answer})
-
     else:
         with st.spinner("🔍 Finding matching programs..."):
             results = query_funding_data(query)
@@ -175,28 +173,31 @@ Please answer helpfully based on the programs shown above."""
             rec_count = len(re.findall(r"^\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
             save_query_to_postgres(query, source, rec_count, full_response)
 
-# ✅ Generate draft buttons using the stored GPT response
+# ✅ Generate Draft Buttons
 if st.session_state.last_recommendation:
     funding_blocks = re.split(r"\n(?=\d+\.\s)", st.session_state.last_recommendation.strip())
-
     for idx, block in enumerate(funding_blocks):
         if st.button(f"📝 Generate Draft for Funding {idx + 1}", key=f"draft_{idx}"):
             st.info("Generating draft document...")
 
             def extract_field(pattern):
                 match = re.search(pattern, block, re.DOTALL)
-                return match.group(1).strip() if match else "Not specified"
+                return match.group(1).strip() if match else None
 
-            metadata = {
-                "name": extract_field(r"\d+\.\s+(.+?)\s*\("),
-                "domain": extract_field(r"\*\*Domain\*\*: (.+)"),
-                "eligibility": extract_field(r"\*\*Eligibility\*\*: (.+)"),
-                "amount": extract_field(r"\*\*Amount\*\*: (.+)"),
-                "deadline": extract_field(r"\*\*Deadline\*\*: (.+)"),
-                "location": extract_field(r"\*\*Location\*\*: (.+)"),
-                "contact": extract_field(r"\*\*Contact\*\*: (.+)"),
-                "procedure": extract_field(r"\*\*Next Steps\*\*:(.+)"),
-            }
+            metadata = {}
+            for field, pattern in {
+                "name": r"\d+\.\s+(.+?)\s*\(",
+                "domain": r"\*\*Domain\*\*: (.+)",
+                "eligibility": r"\*\*Eligibility\*\*: (.+)",
+                "amount": r"\*\*Amount\*\*: (.+)",
+                "deadline": r"\*\*Deadline\*\*: (.+)",
+                "location": r"\*\*Location\*\*: (.+)",
+                "contact": r"\*\*Contact\*\*: (.+)",
+                "procedure": r"\*\*Next Steps\*\*:(.+)"
+            }.items():
+                value = extract_field(pattern)
+                if value and value.lower() != "not specified" and "information not found" not in value.lower():
+                    metadata[field] = value
 
             profile = {
                 "company_name": "RoboAI Solutions",
@@ -208,6 +209,9 @@ if st.session_state.last_recommendation:
             }
 
             docx_data = generate_funding_draft(metadata, profile, client)
+
+            # 🛑 prevent query rerun on download click
+            st.session_state["suppress_query"] = True
 
             st.download_button(
                 label="📄 Download Draft (.docx)",
