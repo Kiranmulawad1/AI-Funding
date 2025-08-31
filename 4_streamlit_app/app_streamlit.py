@@ -70,6 +70,16 @@ st.title("🤖 Smart AI Funding Finder")
 
 # ------------------ History Viewer ------------------
 with st.expander("🕒 Past Queries History (Last 20)"):
+
+    if st.button("🧈 Clear History"):
+        clear_all_queries()
+        st.session_state["suppress_query"] = True  # ✅ Prevent re-querying
+        st.success("History cleared.")
+        st.rerun()
+
+    # ✅ Divider below the button (not inside the loop)
+    st.markdown("---")
+
     recent = get_recent_queries(limit=20)
     if not recent:
         st.info("No queries saved yet.")
@@ -80,17 +90,12 @@ with st.expander("🕒 Past Queries History (Last 20)"):
                 formatted_time = timestamp.strftime("%d %B %Y — %H:%M")
             except Exception:
                 formatted_time = str(q['timestamp'])
-            st.markdown(f"---\n📅 **{formatted_time}**")
+            st.markdown(f"📅 **{formatted_time}**")
             st.markdown(f"🔍 **{q['query'][:200]}**")
             st.markdown(f"📦 **Source**: `{q['source']}` | 📈 **Results**: `{q['result_count']}`")
             with st.expander("🗞 GPT Recommendation"):
                 st.markdown(q['recommendation'])
-
-    if st.button("🧈 Clear History"):
-        clear_all_queries()
-        st.session_state["suppress_query"] = True  # ✅ Prevent re-querying
-        st.success("History cleared.")
-        st.rerun()
+                st.markdown("---")
 
 # ------------------ Chat Input + Display ------------------
 user_text_input = st.chat_input("Describe your company or ask follow up questions...")

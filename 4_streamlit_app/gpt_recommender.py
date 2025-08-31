@@ -105,7 +105,9 @@ def generate_gpt_recommendation(query: str, results: list, client) -> str:
 def extract_sources_from_response(response_text: str) -> list:
     sources = set()
     for line in response_text.splitlines():
-        match = re.match(r"\d+\.\s+.+\s\(([^)]+)\)", line)
+        # Match lines like: "### 1. AIRISE Open Call (nrweuropa)"
+        match = re.match(r"^#*\s*\d+\.\s+.+?\(([^)]+)\)", line)
         if match:
-            sources.add(match.group(1))
+            sources.add(match.group(1).strip())
     return list(sources)
+
