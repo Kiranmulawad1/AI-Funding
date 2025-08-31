@@ -66,7 +66,7 @@ if st.sidebar.button("🔄 Reset Conversation"):
     st.rerun()
 
 # ------------------ Header ------------------
-st.title("🤖 AI-Powered Funding Finder")
+st.title("🎯 AI-Powered Funding Finder")
 
 # ------------------ History Viewer ------------------
 with st.expander("🕒 Past Queries History (Last 20)"):
