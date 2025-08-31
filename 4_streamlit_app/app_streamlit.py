@@ -167,6 +167,7 @@ Respond clearly and concisely, using markdown if helpful."""
                 message_placeholder.markdown(full_response)
 
             st.session_state.last_recommendation = full_response
+            st.session_state["rendered_draft_buttons"] = False
             st.session_state.chat_history.append({"role": "assistant", "content": full_response})
 
             sources = extract_sources_from_response(full_response)
@@ -177,9 +178,10 @@ Respond clearly and concisely, using markdown if helpful."""
 # ✅ Always show Generate Draft Buttons if a GPT recommendation exists
 if st.session_state.last_recommendation:
     funding_blocks = re.split(r"\n(?=#+\s*\d+\.\s)", st.session_state.last_recommendation.strip())
+    st.markdown("### 📝 Draft Your Application")
     for idx, block in enumerate(funding_blocks):
         if st.button(f"📝 Generate Draft for Funding {idx + 1}", key=f"draft_{idx}"):
-            st.info("Generating draft document...")
+            st.info("Generating draft document...") 
 
             def extract_field(pattern):
                 match = re.search(pattern, block, re.DOTALL)
