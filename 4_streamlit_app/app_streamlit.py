@@ -175,7 +175,7 @@ Respond clearly and concisely, using markdown if helpful."""
 
 # ✅ Always show Generate Draft Buttons if a GPT recommendation exists
 if st.session_state.last_recommendation:
-    funding_blocks = re.split(r"\n(?=\d+\.\s)", st.session_state.last_recommendation.strip())
+    funding_blocks = re.split(r"\n(?=#+\s*\d+\.\s)", st.session_state.last_recommendation.strip())
     for idx, block in enumerate(funding_blocks):
         if st.button(f"📝 Generate Draft for Funding {idx + 1}", key=f"draft_{idx}"):
             st.info("Generating draft document...")

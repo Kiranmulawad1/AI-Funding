@@ -25,7 +25,7 @@ def build_gpt_prompt(query: str, top_matches: list) -> str:
             formatted += f"{idx}. {name} ({src})\n"
             formatted += f"- **Description**: {description}\n"
 
-            for field in ["domain", "eligibility", "amount", "deadline", "location", "contact", "url"]:
+            for field in ["domain", "eligibility", "amount", "deadline", "location", "procedure", "contact", "url"]:
                 value = m.get(field)
                 if value and value.strip().lower() not in {"not specified", "information not found"}:
                     formatted += f"- **{field.capitalize()}**: {present(value)}\n"
@@ -42,13 +42,13 @@ The company described itself as:
 
 "{query}"
 
-Here are the top 3 most relevant public funding programs in Germany, based on a semantic search match to their needs:
+Here are the top most relevant public funding programs in Germany, based on a semantic search match to their needs:
 
 {semantic_output}
 
 Now:
 
-Please write a concise and professional recommendation containing **only the top 2–3 most relevant funding programs** in this format:
+Please write a concise and professional recommendation containing **only the top 5 most relevant funding programs** in this format:
 
 Only select the top programs that most directly match the company’s domain, maturity stage, or funding needs.
 **Do not repeat the same program more than once.**
@@ -57,22 +57,36 @@ If a program is already listed, do not list it again even if it appears multiple
 ⚠️ Important rules:  
 - Use only the values explicitly provided in the context above.  
 - If a field (e.g., Domain, Eligibility, Amount, Deadline, Location, Contact) has no value, **skip that field entirely**.  
+- Do not include the Prcedure field along with these field. instead show procedure field under "next steps".
 - Do not invent or guess values.  
+- Use markdown format for clarity.
 
-1. <Program Name> (Source)  
-**Why it fits**: <1–2 lines about relevance to company’s domain or goals>  
-**Description**: <What this program funds>  
-**Domain**: <Domain>  
-**Eligibility**: <Eligibility>  
-**Amount**: <Amount>  
-**Deadline**: <Deadline>  
-**Location**: <Location>  
-**Contact**: <Contact>  
-**Next Steps**:  
-- Step 1: [Visit the official page]({{url}})  
-- Step 2: <Action step>  
-- Step 3: <Action step>  
+🧩 Format each funding like this:
 
+#### 1. Funding Program Name (Source)
+
+• **Why it fits**: <1–2 lines about relevance to company’s domain or goals>
+
+• **Description**: <What this program funds>
+
+• **Domain**: <Domain>
+
+• **Eligibility**: <Eligibility>
+
+• **Amount**: <Amount>
+
+• **Deadline**: <Deadline>
+
+• **Location**: <Location>
+
+• **Contact**: <Contact>
+  
+• **Next Steps**:  
+- Review the application instructions and required documents (only include if information about application_instructions or required_documents are present) 
+- Use the “procedure” field value here if present to describe next possible steps. show the exact full procedure if its within 4 lines. if it crosses 4 lines, then summarise it before showing by capturing all the key details. show each procedure sentence as pointers.
+- [Visit the official page]({{url}})
+
+Respond in this format only
 Only return the final formatted recommendation in markdown. Do not include preamble or commentary.
 """
     return prompt.strip()
