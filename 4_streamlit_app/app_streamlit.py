@@ -173,7 +173,7 @@ Respond clearly and concisely, using markdown if helpful."""
             rec_count = len(re.findall(r"^\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
             save_query_to_postgres(query, source, rec_count, full_response)
 
-# ✅ Generate Draft Buttons
+# ✅ Always show Generate Draft Buttons if a GPT recommendation exists
 if st.session_state.last_recommendation:
     funding_blocks = re.split(r"\n(?=\d+\.\s)", st.session_state.last_recommendation.strip())
     for idx, block in enumerate(funding_blocks):
@@ -210,8 +210,7 @@ if st.session_state.last_recommendation:
 
             docx_data = generate_funding_draft(metadata, profile, client)
 
-            # 🛑 prevent query rerun on download click
-            st.session_state["suppress_query"] = True
+            st.session_state["suppress_query"] = True  # ✅ Prevent re-querying
 
             st.download_button(
                 label="📄 Download Draft (.docx)",
