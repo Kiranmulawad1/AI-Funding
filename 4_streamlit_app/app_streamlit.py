@@ -88,11 +88,12 @@ with st.expander("🕒 Past Queries History (Last 20)"):
 
     if st.button("🧈 Clear History"):
         clear_all_queries()
+        st.session_state["suppress_query"] = True  # ✅ Prevent re-querying
         st.success("History cleared.")
         st.rerun()
 
 # ------------------ Chat Input + Display ------------------
-user_text_input = st.chat_input("Describe your company or project...")
+user_text_input = st.chat_input("Describe your company or ask follow up questions...")
 
 # ✅ Clear suppress flag if user enters a new message
 if user_text_input:
@@ -170,7 +171,7 @@ Respond clearly and concisely, using markdown if helpful."""
 
             sources = extract_sources_from_response(full_response)
             source = ", ".join(sorted(sources)) or "Unknown"
-            rec_count = len(re.findall(r"^\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
+            rec_count = len(re.findall(r"^#+\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
             save_query_to_postgres(query, source, rec_count, full_response)
 
 # ✅ Always show Generate Draft Buttons if a GPT recommendation exists
@@ -186,7 +187,7 @@ if st.session_state.last_recommendation:
 
             metadata = {}
             for field, pattern in {
-                "name": r"\d+\.\s+(.+?)\s*\(",
+                "name": r"#*\s*\d+\.\s+(.+?)\s*\(",
                 "domain": r"\*\*Domain\*\*: (.+)",
                 "eligibility": r"\*\*Eligibility\*\*: (.+)",
                 "amount": r"\*\*Amount\*\*: (.+)",
