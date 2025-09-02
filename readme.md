@@ -212,15 +212,6 @@ queries = [
 ]
 ```
 
-### Performance Testing
-```bash
-# Test embedding generation speed
-python -c "from rag_core import get_embedding; import time; start=time.time(); get_embedding('test query'); print(f'Embedding time: {time.time()-start:.2f}s')"
-
-# Test search accuracy  
-jupyter notebook 3_embeddings_query/query_openai.ipynb
-```
-
 ## 📈 Future Enhancements
 
 ### Planned Features
@@ -236,26 +227,9 @@ jupyter notebook 3_embeddings_query/query_openai.ipynb
 - **Scalability**: Kubernetes deployment for production use
 - **Security**: Enhanced authentication and data protection
 
-## 🤝 Contributing
-
-### Development Setup
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/your-feature`
-3. Make changes and test thoroughly
-4. Submit pull request with detailed description
-
-### Code Standards
-- Follow PEP 8 Python style guidelines
-- Add docstrings for all functions and classes
-- Include unit tests for new functionality
-- Update README for significant changes
-
 ## 📝 License
 
 This project is part of a Master's thesis at SRH Hochschule Heidelberg. 
-
-**Academic Use**: Free for educational and research purposes
-**Commercial Use**: Contact author for licensing terms
 
 ## 📞 Contact & Support
 
@@ -263,18 +237,6 @@ This project is part of a Master's thesis at SRH Hochschule Heidelberg.
 **University**: SRH Hochschule Heidelberg  
 **Program**: MSc Applied Data Science and Analytics  
 **Supervisors**: Prof. Dr. Mehrdad Jalali, Aashwin Shrivastava (iiterate Technologies)
-
-### Getting Help
-- **Issues**: Open GitHub issues for bugs or feature requests
-- **Questions**: Contact via university email or LinkedIn
-- **Documentation**: Check inline code comments and Jupyter notebooks
-
-## 🙏 Acknowledgments
-
-- **iiterate Technologies GmbH** for internship opportunity and continued support
-- **SRH Hochschule Heidelberg** for academic guidance and resources  
-- **OpenAI** for GPT-4 and embedding model access
-- **German Federal Funding Databases** for public data availability
 
 ## 📚 Research Context
 
@@ -285,6 +247,3 @@ This system was developed as part of a Master's thesis research project focusing
 - **Human-AI interaction** design for complex decision-making processes
 
 The project extends previous internship work by adding comprehensive document generation capabilities and advanced AI integration, representing a significant contribution to the field of AI-assisted business development tools.
-
----
-**⭐ If this project helps your research or business, please consider starring the repository!**
