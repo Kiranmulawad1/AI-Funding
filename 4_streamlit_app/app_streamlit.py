@@ -344,22 +344,22 @@ st.sidebar.markdown("---")
 # Reset and Clear Options
 st.sidebar.markdown("### 🔄 Actions")
 
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    if st.button("🆕 Reset Chat", type="secondary"):
-        for key in [
-            "chat_history", "last_recommendation", "pdf_summary_query",
-            "pending_query", "pdf_hash", "enhanced_query", "waiting_for_clarification"
-        ]:
-            st.session_state.pop(key, None)
-        st.session_state.chat_history = []
-        st.session_state["file_uploader_key"] = str(uuid.uuid4())
-        st.rerun()
+# col1, col2 = st.sidebar.columns(2)
+# with col1:
+if st.button("🆕 Reset Chat", type="secondary"):
+    for key in [
+        "chat_history", "last_recommendation", "pdf_summary_query",
+        "pending_query", "pdf_hash", "enhanced_query", "waiting_for_clarification"
+    ]:
+        st.session_state.pop(key, None)
+    st.session_state.chat_history = []
+    st.session_state["file_uploader_key"] = str(uuid.uuid4())
+    st.rerun()
 
-with col2:
-    if st.button("🗑️ Clear History", type="secondary"):
-        clear_all_queries()
-        st.sidebar.success("History cleared!")
+# with col2:
+#     if st.button("🗑️ Clear History", type="secondary"):
+#         clear_all_queries()
+#         st.sidebar.success("History cleared!")
 
 # ------------------ Main Header ------------------
 create_modern_header(
