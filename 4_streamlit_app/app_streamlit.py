@@ -346,7 +346,7 @@ st.sidebar.markdown("### 🔄 Actions")
 
 # col1, col2 = st.sidebar.columns(2)
 # with col1:
-if st.button("🆕 Reset Chat", type="secondary"):
+if st.sidebar.button("🆕 Reset Chat", type="secondary"):
     for key in [
         "chat_history", "last_recommendation", "pdf_summary_query",
         "pending_query", "pdf_hash", "enhanced_query", "waiting_for_clarification"
