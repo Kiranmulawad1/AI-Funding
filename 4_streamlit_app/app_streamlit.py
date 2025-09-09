@@ -141,7 +141,7 @@ if st.sidebar.button("🆕 Reset Chat", type="secondary", use_container_width=Tr
 # ------------------ Main Header ------------------
 create_modern_header(
     "🎯 AI Grant Finder", 
-    "Discover the perfect funding opportunities for your AI and robotics projects"
+    "Discover the perfect funding opportunities for your company projects"
 )
 
 # ------------------ Feature Highlights ------------------
