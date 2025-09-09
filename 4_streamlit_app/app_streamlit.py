@@ -736,9 +736,8 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666; padding: 2rem;'>
-        <p>🎯 <strong>AI Grant Finder</strong> - Powered by OpenAI GPT-4 & Comprehensive Search</p>
+        <p>🎯 <strong>AI Grant Finder</strong> - Powered by OpenAI & Comprehensive Search</p>
         <p>💡 <em>Now covering 20+ funding sources across EU, Federal, Regional & Private sectors</em></p>
-        <p>🎬 <em>✨ New: Real-time streaming responses for all interactions</em></p>
     </div>
     """, 
     unsafe_allow_html=True
