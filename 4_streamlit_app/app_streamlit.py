@@ -75,7 +75,7 @@ search_option = st.sidebar.radio(
     [
         "🚀 Comprehensive Search (20+ sources)",
         "💾 Database Search (fastest)", 
-        "📊 Original Sources Only (FDB, ISB, NRW)"
+        "📊 Original Sources Only (ISB, NRW, FDB)"
     ],
     index=0,
     help="Comprehensive search covers EU, federal, regional, and private funding"
