@@ -158,7 +158,7 @@ with col1:
     create_feature_box(
         "🔍", 
         "Comprehensive Search", 
-        "Search across 20+ funding sources: EU, federal, regional, private funding (includes ISB, NRW, FDB + 17 others)"
+        "Search across 20+ funding sources: EU, federal, regional, private funding"
     )
 with col2:
     create_feature_box(
