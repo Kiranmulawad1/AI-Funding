@@ -1,4 +1,4 @@
-import os
+# import os
 import re
 import uuid
 import hashlib
@@ -12,8 +12,8 @@ from utils import present, program_name
 from docx_generator import generate_funding_draft
 from memory import save_query_to_postgres, get_recent_queries, clear_all_queries
 from gpt_recommender import build_gpt_prompt, extract_sources_from_response
-# Import new comprehensive search module
-from expanded_dynamic_search import get_comprehensive_funding_results, ExpandedFundingSearcher
+# Import ONLY comprehensive search module
+from expanded_dynamic_search import get_comprehensive_funding_results
 from modern_styles import apply_modern_styling, create_modern_header, create_feature_box, create_funding_card
 from clarifying_questions import ClarifyingQuestionsManager
 
@@ -41,12 +41,14 @@ if missing_keys:
     st.stop()
 
 # ------------------ Session State Init ------------------
+# 🔧 FIXED: Added all necessary states for proper query processing control
 for key in [
     "chat_history", "last_recommendation", "pdf_summary_query", 
     "pdf_hash", "pending_query", "search_method", "ask_clarifying_questions",
     "current_funding_questions", "current_draft_questions", "enhanced_query",
     "waiting_for_clarification", "last_results", "show_draft_questions", 
-    "follow_up_responses", "current_follow_up"  # Added current_follow_up
+    "follow_up_responses", "current_follow_up", "enhanced_processed", "direct_query_to_process",
+    "processed_original_query", "should_process_enhanced", "should_process_direct"
 ]:
     if key not in st.session_state:
         if key == "chat_history":
@@ -59,6 +61,10 @@ for key in [
             st.session_state[key] = False
         elif key == "follow_up_responses":
             st.session_state[key] = []
+        elif key == "enhanced_processed":
+            st.session_state[key] = False
+        elif key in ["direct_query_to_process", "processed_original_query", "should_process_enhanced", "should_process_direct"]:
+            st.session_state[key] = None
         else:
             st.session_state[key] = None
 
@@ -68,23 +74,22 @@ st.sidebar.title("⚙️ Settings")
 if "file_uploader_key" not in st.session_state:
     st.session_state["file_uploader_key"] = "default_uploader"
 
-# Search method selection
+# Search method selection - ONLY 2 OPTIONS
 st.sidebar.markdown("### 🔍 Search Options")
 search_option = st.sidebar.radio(
     "Choose search method:",
     [
         "🚀 Comprehensive Search (20+ sources)",
-        "💾 Database Search (fastest)", 
-        "📊 Original Sources Only (ISB, NRW, FDB)"
+        "💾 Database Search (fastest)"
     ],
     index=0,
-    help="Comprehensive search covers EU, federal, regional, and private funding"
+    help="Comprehensive search includes ISB, NRW, FDB + 17 other EU/federal/regional/private funding sources"
 )
 
 # Store search preference
 st.session_state.search_method = search_option
 
-# Clarifying questions toggle with correct text
+# Clarifying questions toggle
 st.session_state.ask_clarifying_questions = st.sidebar.checkbox(
     "🧠 Enable Clarifying Questions", 
     value=st.session_state.ask_clarifying_questions,
@@ -125,16 +130,19 @@ st.sidebar.markdown("---")
 
 # Reset and Clear Options
 st.sidebar.markdown("### 🔄 Actions")
-# Only Reset Chat button in sidebar
+# 🔧 FIXED: Clear all processing states on reset
 if st.sidebar.button("🆕 Reset Chat", type="secondary", use_container_width=True):
     for key in [
         "chat_history", "last_recommendation", "pdf_summary_query",
         "pending_query", "pdf_hash", "enhanced_query", "waiting_for_clarification",
-        "show_draft_questions", "follow_up_responses", "current_follow_up"
+        "show_draft_questions", "follow_up_responses", "current_follow_up",
+        "enhanced_processed", "current_funding_questions", "original_query", "direct_query_to_process",
+        "processed_original_query", "should_process_enhanced", "should_process_direct"
     ]:
         st.session_state.pop(key, None)
     st.session_state.chat_history = []
     st.session_state.follow_up_responses = []
+    st.session_state.enhanced_processed = False
     st.session_state["file_uploader_key"] = str(uuid.uuid4())
     st.rerun()
 
@@ -150,13 +158,13 @@ with col1:
     create_feature_box(
         "🔍", 
         "Comprehensive Search", 
-        "Search across 20+ funding sources: EU, federal, regional, and private funding"
+        "Search across 20+ funding sources: EU, federal, regional, private funding (includes ISB, NRW, FDB + 17 others)"
     )
 with col2:
     create_feature_box(
-        "🤖", 
-        "AI-Powered Matching", 
-        "Intelligent ranking and filtering based on your specific needs and location"
+        "🤔", 
+        "Smart Clarifying Questions", 
+        "AI asks targeted questions to understand your needs and find the best funding matches"
     )
 with col3:
     create_feature_box(
@@ -249,15 +257,19 @@ if st.session_state.get("waiting_for_clarification") == "funding":
                     original_query = st.session_state.get("original_query", "")
                     enhanced_query = questions_manager.process_funding_answers(original_query, answers)
                     
-                    # Clear the waiting state and trigger search
+                    # 🔧 FIXED: Store original query before clearing states
+                    st.session_state.processed_original_query = original_query
+                    
+                    # Clear ALL clarifying question states properly
                     st.session_state.waiting_for_clarification = None
+                    st.session_state.current_funding_questions = None
+                    st.session_state.original_query = None
                     st.session_state.enhanced_query = enhanced_query
                     st.session_state.enhanced_processed = False
                     
-                    # Add the enhanced query to chat history immediately
-                    with st.chat_message("user"):
-                        st.markdown(enhanced_query)
-                    st.session_state.chat_history.append({"role": "user", "content": enhanced_query})
+                    # 🔧 FIXED: DON'T add to chat history here - let query processing handle it
+                    # Mark that this query should be processed
+                    st.session_state.should_process_enhanced = True
                     
                     st.rerun()
                 else:
@@ -265,17 +277,20 @@ if st.session_state.get("waiting_for_clarification") == "funding":
         
         with col2:
             if st.button("⏭️ Skip Questions", type="secondary", key="skip_questions"):
-                # Use original query without enhancement
                 original_query = st.session_state.get("original_query", "")
                 
-                st.session_state.waiting_for_clarification = None
-                st.session_state.enhanced_query = original_query
-                st.session_state.enhanced_processed = False
+                # 🔧 FIXED: Store original query before clearing states
+                st.session_state.processed_original_query = original_query
                 
-                # Add the original query to chat history
-                with st.chat_message("user"):
-                    st.markdown(original_query)
-                st.session_state.chat_history.append({"role": "user", "content": original_query})
+                # Clear ALL clarifying question related states
+                st.session_state.waiting_for_clarification = None
+                st.session_state.current_funding_questions = None
+                st.session_state.original_query = None
+                
+                # 🔧 FIXED: DON'T add to chat history here - let query processing handle it
+                # Set flag to process the original query directly
+                st.session_state.direct_query_to_process = original_query
+                st.session_state.should_process_direct = True
                 
                 st.rerun()
     
@@ -307,15 +322,31 @@ user_input = st.chat_input("Describe your company or ask follow-up questions..."
 
 # Handle new user input or enhanced query
 query_to_process = None
-if user_input:
+is_direct_query = False
+is_enhanced_query = False
+
+# 🔧 FIXED: Better query processing with proper state storage and flags
+if st.session_state.get("direct_query_to_process") and st.session_state.get("should_process_direct"):
+    # Handle direct query from "Skip Questions" first
+    query_to_process = st.session_state.direct_query_to_process
+    is_direct_query = True
+    st.session_state.direct_query_to_process = None  # Clear immediately to prevent reprocessing
+    st.session_state.should_process_direct = None   # Clear flag
+elif st.session_state.enhanced_query and st.session_state.get("should_process_enhanced") and not st.session_state.get("enhanced_processed"):
+    query_to_process = st.session_state.enhanced_query
+    is_enhanced_query = True
+    st.session_state.enhanced_processed = True
+    st.session_state.should_process_enhanced = None  # Clear flag
+elif user_input:
     st.session_state.pop("suppress_query", None)
     query_to_process = user_input
-elif st.session_state.enhanced_query and not st.session_state.get("enhanced_processed"):
-    query_to_process = st.session_state.enhanced_query
-    st.session_state.enhanced_processed = True
+    # Store for draft generation
+    st.session_state.processed_original_query = user_input
 elif st.session_state.pdf_summary_query and not st.session_state.get("pdf_processed"):
     query_to_process = st.session_state.pdf_summary_query
     st.session_state.pdf_processed = True
+    # Store for draft generation
+    st.session_state.processed_original_query = st.session_state.pdf_summary_query
 
 # Block processing if waiting for clarification or if suppress flag is set
 if st.session_state.get("waiting_for_clarification") or st.session_state.get("suppress_query"):
@@ -327,27 +358,34 @@ if query_to_process and not st.session_state.get("waiting_for_clarification"):
     is_follow_up = (st.session_state.last_recommendation and 
                    user_input and 
                    not st.session_state.enhanced_query and
+                   not is_direct_query and
+                   not is_enhanced_query and
                    len(query_to_process.split()) < 15)
     
-    # Add user message to chat ONLY if it's NOT a follow-up (to prevent duplication)
-    if user_input and not st.session_state.enhanced_query and not is_follow_up:
+    # 🔧 FIXED: Add user message to chat only once and in the right conditions
+    if user_input and not is_follow_up:
+        # Regular user input (not from clarifying questions)
         with st.chat_message("user"):
             st.markdown(query_to_process)
         st.session_state.chat_history.append({"role": "user", "content": query_to_process})
-    elif user_input and not st.session_state.enhanced_query and is_follow_up:
-        # For follow-ups, add to chat history but prepare for streaming
-        # This will be displayed later when we stream the response
+    elif is_follow_up:
+        # Follow-up questions
         with st.chat_message("user"):
             st.markdown(query_to_process)
         st.session_state.chat_history.append({"role": "user", "content": query_to_process})
-    elif not user_input:
-        # For enhanced queries or PDF queries, add to chat normally
+    elif is_direct_query or is_enhanced_query:
+        # Queries from clarifying questions workflow
+        with st.chat_message("user"):
+            st.markdown(query_to_process)
+        st.session_state.chat_history.append({"role": "user", "content": query_to_process})
+    elif not user_input and not is_direct_query and not is_enhanced_query:
+        # PDF queries or other non-user inputs
         with st.chat_message("user"):
             st.markdown(query_to_process)
         st.session_state.chat_history.append({"role": "user", "content": query_to_process})
     
     if is_follow_up:
-        # 🎯 NEW: Store follow-up for streaming instead of immediate processing
+        # Store follow-up for streaming instead of immediate processing
         follow_up_prompt = f"""You are a funding assistant chatbot.
         
 Previous recommendation you gave:
@@ -386,12 +424,12 @@ Respond clearly and helpfully:"""
             st.session_state.waiting_for_clarification = "funding"
             st.rerun()
         
-        # Perform funding search based on selected method
+        # Perform funding search based on selected method - SIMPLIFIED TO 2 OPTIONS
         with st.spinner("🔍 Searching for funding opportunities..."):
             search_method = st.session_state.get("search_method", "💾 Database Search (fastest)")
             
             if "Comprehensive Search" in search_method:
-                # Use new comprehensive search (20+ sources)
+                # Use comprehensive search (20+ sources including ISB, NRW, FDB + 17 others)
                 try:
                     results = asyncio.run(get_comprehensive_funding_results(query_to_process, max_results=12))
                     search_method_display = "Comprehensive Search (20+ sources)"
@@ -399,18 +437,6 @@ Respond clearly and helpfully:"""
                     st.warning(f"Comprehensive search failed: {e}. Using database search.")
                     results = query_funding_data(query_to_process)
                     search_method_display = "Database Search (fallback)"
-            
-            elif "Original Sources Only" in search_method:
-                # Use original 3 sources only (FDB, ISB, NRW) - fallback to database if not available
-                try:
-                    from dynamic_search import get_dynamic_funding_results
-                    results = asyncio.run(get_dynamic_funding_results(query_to_process, max_results=8))
-                    search_method_display = "Original Sources Only (FDB, ISB, NRW)"
-                except Exception as e:
-                    st.warning(f"Original sources search not available: {e}. Using database search.")
-                    results = query_funding_data(query_to_process)
-                    search_method_display = "Database Search (fallback)"
-            
             else:
                 # Use existing database search (fastest)
                 results = query_funding_data(query_to_process)
@@ -458,8 +484,12 @@ Respond clearly and helpfully:"""
             rec_count = len(results)
             save_query_to_postgres(query_to_process, f"{source} ({search_method_display})", rec_count, full_response)
             
-            # Clear the enhanced query so it doesn't get processed again
+            # 🔧 FIXED: Clear all query processing flags after successful completion
             st.session_state.enhanced_query = None
+            st.session_state.enhanced_processed = False
+            st.session_state.should_process_enhanced = None
+            st.session_state.should_process_direct = None
+            st.session_state.chat_added = None  # Reset for next query
 
 # ------------------ Draft Generation Section ------------------
 if st.session_state.last_recommendation:
@@ -506,7 +536,18 @@ if st.session_state.last_recommendation:
                     
                     # Check if we should ask clarifying questions for draft
                     if st.session_state.ask_clarifying_questions:
-                        original_query = st.session_state.get("original_query", query_to_process or "")
+                        # 🔧 FIXED: Use processed_original_query with null safety
+                        original_query = (
+                            st.session_state.get("processed_original_query") or 
+                            st.session_state.get("original_query") or 
+                            query_to_process or 
+                            "Innovation project"
+                        )
+                        
+                        # Ensure original_query is never None or empty
+                        if not original_query or original_query.strip() == "":
+                            original_query = "Innovation project"
+                            
                         if questions_manager.should_ask_draft_questions(metadata, original_query):
                             st.session_state.current_draft_questions = questions_manager.generate_draft_questions(metadata, original_query)
                             st.session_state.show_draft_questions = True
@@ -517,9 +558,9 @@ if st.session_state.last_recommendation:
                                 profile = {
                                     "company_name": "Your Company",
                                     "location": "Germany",
-                                    "industry": "AI/Robotics",
-                                    "goals": "Innovation and research in AI technology",
-                                    "project_idea": query_to_process or "AI-based project",
+                                    "industry": "Technology/Innovation",
+                                    "goals": "Innovation and research in technology",
+                                    "project_idea": original_query,
                                     "funding_need": "Research and development funding"
                                 }
                                 
@@ -538,12 +579,20 @@ if st.session_state.last_recommendation:
                     else:
                         # Clarifying questions disabled, generate directly
                         with st.spinner("🎯 Generating application draft..."):
+                            # 🔧 FIXED: Handle None values for direct generation too
+                            original_query = (
+                                st.session_state.get("processed_original_query") or 
+                                st.session_state.get("original_query") or 
+                                query_to_process or 
+                                "Innovation project"
+                            )
+                            
                             profile = {
                                 "company_name": "Your Company",
                                 "location": "Germany",
-                                "industry": "AI/Robotics", 
-                                "goals": "Innovation and research in AI technology",
-                                "project_idea": query_to_process or "AI-based project",
+                                "industry": "Technology/Innovation", 
+                                "goals": "Innovation and research in technology",
+                                "project_idea": original_query,
                                 "funding_need": "Research and development funding"
                             }
                             
@@ -603,8 +652,13 @@ if st.session_state.last_recommendation:
                     if answers:
                         with st.spinner("🎯 Generating enhanced application draft..."):
                             try:
-                                # Process answers into enhanced profile
-                                original_query = st.session_state.get("original_query", "")
+                                # 🔧 FIXED: Use processed_original_query with null safety
+                                original_query = (
+                                    st.session_state.get("processed_original_query") or 
+                                    st.session_state.get("original_query") or 
+                                    "Innovation project"
+                                )
+                                
                                 enhanced_profile = questions_manager.process_draft_answers(
                                     original_query, funding_program, answers
                                 )
@@ -613,8 +667,8 @@ if st.session_state.last_recommendation:
                                 profile = {
                                     "company_name": "Your Company",
                                     "location": "Germany",
-                                    "industry": "AI/Robotics",
-                                    "goals": "Innovation and research in AI technology",
+                                    "industry": "Technology/Innovation",
+                                    "goals": "Innovation and research in technology",
                                     "project_idea": original_query,
                                     "funding_need": "Research and development funding"
                                 }
@@ -645,13 +699,18 @@ if st.session_state.last_recommendation:
                 if st.button("📝 Basic Draft", type="secondary", key=f"basic_draft_btn_{program_idx}"):
                     with st.spinner("🎯 Generating basic application draft..."):
                         try:
-                            # Use basic profile
-                            original_query = st.session_state.get("original_query", "")
+                            # 🔧 FIXED: Use processed_original_query with null safety
+                            original_query = (
+                                st.session_state.get("processed_original_query") or 
+                                st.session_state.get("original_query") or 
+                                "Innovation project"
+                            )
+                            
                             profile = {
                                 "company_name": "Your Company",
                                 "location": "Germany", 
-                                "industry": "AI/Robotics",
-                                "goals": "Innovation and research in AI technology",
+                                "industry": "Technology/Innovation",
+                                "goals": "Innovation and research in technology",
                                 "project_idea": original_query,
                                 "funding_need": "Research and development funding"
                             }
@@ -680,8 +739,7 @@ if st.session_state.last_recommendation:
                     st.session_state.show_draft_questions = False
                     st.rerun()
 
-# ------------------ 🎯 STREAM FOLLOW-UP RESPONSE AFTER DRAFT BUTTONS ------------------
-# Stream follow-up responses at the bottom after draft generation section
+# ------------------ Stream Follow-up Response After Draft Buttons ------------------
 if st.session_state.get("current_follow_up") and st.session_state.current_follow_up.get("streaming"):
     st.markdown("---")
     current_followup = st.session_state.current_follow_up
@@ -709,7 +767,7 @@ if st.session_state.get("current_follow_up") and st.session_state.current_follow
         
         message_placeholder.markdown(full_response)
     
-    # Store the follow-up Q&A for future display (but don't add to main chat history)
+    # Store the follow-up Q&A for future display
     st.session_state.follow_up_responses.append({
         "question": current_followup["question"],
         "answer": full_response
@@ -722,7 +780,6 @@ if st.session_state.get("current_follow_up") and st.session_state.current_follow
     st.rerun()
 
 # ------------------ Display Previous Follow-up Q&A After Draft Buttons ------------------
-# This achieves the flow: query -> recommendation -> generate buttons -> follow-up Q&A
 if st.session_state.get("follow_up_responses") and not st.session_state.get("current_follow_up"):
     st.markdown("---")
     for i, follow_up in enumerate(st.session_state.follow_up_responses):
@@ -736,238 +793,10 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666; padding: 2rem;'>
-        <p>🎯 <strong>AI Grant Finder</strong> - Powered by OpenAI & Comprehensive Search</p>
-        <p>💡 <em>Now covering 20+ funding sources across EU, Federal, Regional & Private sectors</em></p>
+        <p>🎯 <strong>AI Grant Finder</strong> - Advanced Funding Discovery for Innovation Projects</p>
+        <p>💡 <em>Covering EU Horizon, Federal Programs, Regional Grants & Private Funding (20+ sources)</em></p>
     </div>
     """, 
     unsafe_allow_html=True
 )
 
-# import os
-# import re
-# import uuid
-# import hashlib
-# import fitz  # PyMuPDF
-# import streamlit as st
-# from datetime import datetime
-
-# from config import OPENAI_API_KEY, PINECONE_API_KEY, PINECONE_ENV, get_openai_client
-# from rag_core import query_funding_data
-# from utils import present, program_name
-# from docx_generator import generate_funding_draft
-# from memory import save_query_to_postgres, get_recent_queries, clear_all_queries
-# from gpt_recommender import build_gpt_prompt, extract_sources_from_response
-
-# # ------------------ Setup ------------------
-# st.set_page_config(page_title="Smart Funding Finder", layout="centered")
-# client = get_openai_client()
-
-# # ------------------ ENV Check ------------------
-# missing_keys = [k for k, v in {
-#     "OPENAI_API_KEY": OPENAI_API_KEY,
-#     "PINECONE_API_KEY": PINECONE_API_KEY,
-#     "PINECONE_ENV": PINECONE_ENV,
-# }.items() if not v]
-# if missing_keys:
-#     st.error(f"Missing environment variables: {', '.join(missing_keys)}")
-#     st.stop()
-
-# # ------------------ Session Init ------------------
-# for key in ["chat_history", "last_recommendation", "pdf_summary_query", "pdf_hash", "pending_query"]:
-#     if key not in st.session_state:
-#         st.session_state[key] = None if key != "chat_history" else []
-
-# # ------------------ Sidebar: PDF Upload + Reset ------------------
-# if "file_uploader_key" not in st.session_state:
-#     st.session_state["file_uploader_key"] = "default_uploader"
-
-# st.sidebar.subheader("📄 Upload Company Profile (Optional)")
-# uploaded_pdf = st.sidebar.file_uploader("Upload PDF", type=["pdf"], key=st.session_state["file_uploader_key"])
-
-# if uploaded_pdf:
-#     pdf_bytes = uploaded_pdf.getvalue()
-#     pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
-#     if st.session_state.pdf_hash != pdf_hash:
-#         st.session_state.pdf_hash = pdf_hash
-#         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-#         full_text = "\n".join(page.get_text() for page in doc).strip()[:6000]
-#         prompt = f"""Summarize the company profile into 2–3 lines for public funding discovery.\nFocus on domain, goals, and funding need.\n---\n{full_text}\n---"""
-#         response = client.chat.completions.create(
-#             model="gpt-3.5-turbo",
-#             messages=[{"role": "user", "content": prompt}]
-#         )
-#         st.session_state.pdf_summary_query = response.choices[0].message.content.strip()
-#         st.sidebar.success("✅ Summary generated from PDF.")
-
-# st.sidebar.markdown("---")
-# st.sidebar.subheader("🧠 Chat Options")
-# if st.sidebar.button("🔄 Reset Conversation"):
-#     for key in [
-#         "chat_history", "last_recommendation", "pdf_summary_query",
-#         "pending_query", "pdf_hash", "uploaded_pdf", "suppress_query"
-#     ]:
-#         st.session_state.pop(key, None)
-#     st.session_state["file_uploader_key"] = str(uuid.uuid4())
-#     st.rerun()
-
-# # ------------------ Header ------------------
-# st.title("🎯 AI Grant Finder")
-
-# # ------------------ History Viewer ------------------
-# with st.expander("🕒 Past Queries History (Last 20)"):
-
-#     if st.button("🧈 Clear History"):
-#         clear_all_queries()
-#         st.session_state["suppress_query"] = True  # ✅ Prevent re-querying
-#         st.success("History cleared.")
-#         st.rerun()
-
-#     # ✅ Divider below the button (not inside the loop)
-#     st.markdown("---")
-
-#     recent = get_recent_queries(limit=20)
-#     if not recent:
-#         st.info("No queries saved yet.")
-#     else:
-#         for q in recent:
-#             try:
-#                 timestamp = datetime.fromisoformat(str(q['timestamp'])).astimezone()
-#                 formatted_time = timestamp.strftime("%d %B %Y — %H:%M")
-#             except Exception:
-#                 formatted_time = str(q['timestamp'])
-#             st.markdown(f"📅 **{formatted_time}**")
-#             st.markdown(f"🔍 **{q['query'][:200]}**")
-#             st.markdown(f"📦 **Source**: `{q['source']}` | 📈 **Results**: `{q['result_count']}`")
-#             with st.expander("🗞 GPT Recommendation"):
-#                 st.markdown(q['recommendation'])
-#                 st.markdown("---")
-
-# # ------------------ Chat Input + Display ------------------
-# user_text_input = st.chat_input("Describe your company or ask follow up questions...")
-
-# # ✅ Clear suppress flag if user enters a new message
-# if user_text_input:
-#     st.session_state.pop("suppress_query", None)
-
-# query = user_text_input or st.session_state.pdf_summary_query
-# st.session_state.pending_query = query
-
-# # ✅ Block GPT rerun if draft/download is triggered
-# if any(k.startswith("draft_") and st.session_state.get(k) for k in st.session_state.keys()) or st.session_state.get("suppress_query"):
-#     query = None
-
-# # ✅ Display chat history
-# for msg in st.session_state.chat_history:
-#     with st.chat_message(msg["role"]):
-#         st.markdown(msg["content"])
-
-# # ✅ Run GPT if valid new query
-# if query:
-#     with st.chat_message("user"):
-#         st.markdown(query)
-#     st.session_state.chat_history.append({"role": "user", "content": query})
-
-#     if st.session_state.last_recommendation:
-#         prompt = f"""You are a funding assistant chatbot.
-
-# Below is a prior recommendation you gave based on public funding data:
-# ---
-# {st.session_state.last_recommendation}
-# ---
-
-# The user now asks a follow-up:
-# \"{query}\"
-
-# Rules:
-# - Only use information from the recommendation text above.
-# - If a field like contact or URL was not included, reply that it was not available in the data.
-# - Do not make up or guess email addresses or contact info.
-# - You can suggest visiting the official URL only if it was explicitly listed in the previous answer.
-
-# Respond clearly and concisely, using markdown if helpful."""
-#         with st.chat_message("assistant"):
-#             response = client.chat.completions.create(
-#                 model="gpt-4-turbo",
-#                 messages=[{"role": "user", "content": prompt}]
-#             )
-#             answer = response.choices[0].message.content.strip()
-#             st.markdown(answer)
-#             st.session_state.chat_history.append({"role": "assistant", "content": answer})
-#     else:
-#         with st.spinner("🔍 Finding matching programs..."):
-#             results = query_funding_data(query)
-
-#         if not results:
-#             st.error("No matching funding programs found.")
-#         else:
-#             with st.chat_message("assistant"):
-#                 message_placeholder = st.empty()
-#                 full_response = ""
-#                 prompt = build_gpt_prompt(query, results)
-#                 response = client.chat.completions.create(
-#                     model="gpt-4-turbo",
-#                     messages=[{"role": "user", "content": prompt}],
-#                     stream=True
-#                 )
-#                 for chunk in response:
-#                     if chunk.choices and getattr(chunk.choices[0].delta, "content", None):
-#                         token = chunk.choices[0].delta.content
-#                         full_response += token
-#                         message_placeholder.markdown(full_response + "▌")
-#                 message_placeholder.markdown(full_response)
-
-#             st.session_state.last_recommendation = full_response
-#             st.session_state["rendered_draft_buttons"] = False
-#             st.session_state.chat_history.append({"role": "assistant", "content": full_response})
-
-#             sources = extract_sources_from_response(full_response)
-#             source = ", ".join(sorted(sources)) or "Unknown"
-#             rec_count = len(re.findall(r"^#+\s*\d+\.\s", full_response, flags=re.MULTILINE)) or len(results)
-#             save_query_to_postgres(query, source, rec_count, full_response)
-
-# # ✅ Always show Generate Draft Buttons if a GPT recommendation exists
-# if st.session_state.last_recommendation:
-#     funding_blocks = re.split(r"\n(?=#+\s*\d+\.\s)", st.session_state.last_recommendation.strip())
-#     st.markdown("### 📝 Draft Your Application")
-#     for idx, block in enumerate(funding_blocks):
-#         if st.button(f"📝 Generate Draft for Funding {idx + 1}", key=f"draft_{idx}"):
-#             st.info("Generating draft document...") 
-
-#             def extract_field(pattern):
-#                 match = re.search(pattern, block, re.DOTALL)
-#                 return match.group(1).strip() if match else None
-
-#             metadata = {}
-#             for field, pattern in {
-#                 "name": r"#*\s*\d+\.\s+(.+?)\s*\(",
-#                 "domain": r"\*\*Domain\*\*: (.+)",
-#                 "eligibility": r"\*\*Eligibility\*\*: (.+)",
-#                 "amount": r"\*\*Amount\*\*: (.+)",
-#                 "deadline": r"\*\*Deadline\*\*: (.+)",
-#                 "location": r"\*\*Location\*\*: (.+)",
-#                 "contact": r"\*\*Contact\*\*: (.+)",
-#                 "procedure": r"\*\*Next Steps\*\*:(.+)"
-#             }.items():
-#                 value = extract_field(pattern)
-#                 if value and value.lower() != "not specified" and "information not found" not in value.lower():
-#                     metadata[field] = value
-
-#             profile = {
-#                 "company_name": "RoboAI Solutions",
-#                 "location": "Rhineland-Palatinate, Germany",
-#                 "industry": "AI-based Robotics",
-#                 "goals": "Develop intelligent control systems for industrial robots",
-#                 "project_idea": "Advanced AI-based Robotic Systems for Automation",
-#                 "funding_need": "€200,000 for research and prototyping"
-#             }
-
-#             docx_data = generate_funding_draft(metadata, profile, client)
-
-#             st.session_state["suppress_query"] = True  # ✅ Prevent re-querying
-
-#             st.download_button(
-#                 label="📄 Download Draft (.docx)",
-#                 data=docx_data,
-#                 file_name=f"draft_funding_{idx + 1}.docx",
-#                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-#             )
