@@ -1,14 +1,11 @@
-# rag_core.py
-
-import re
+# search_engine.py
 import pandas as pd
-import numpy as np
 from pinecone import Pinecone
-from config import PINECONE_API_KEY, PINECONE_ENV, INDEX_NAME, NAMESPACE, get_openai_client
-from utils import present, safe_parse_deadline
+from config import PINECONE_API_KEY, INDEX_NAME, NAMESPACE, get_openai_client
+from utils import safe_parse_deadline
 
 client = get_openai_client()
-pc = Pinecone(api_key=PINECONE_API_KEY, environment=PINECONE_ENV)
+pc = Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(INDEX_NAME)
 
 def get_embedding(text: str):
