@@ -1,4 +1,8 @@
-# import os
+import sys
+import os
+# Add project root to path so 'src' module can be imported
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import re
 import uuid
 import hashlib
@@ -6,16 +10,18 @@ import asyncio
 import fitz  # PyMuPDF
 import streamlit as st
 from datetime import datetime
-from config import OPENAI_API_KEY, PINECONE_API_KEY, PINECONE_ENV, get_openai_client
-from search_engine import query_funding_data
-from utils import present, program_name
-from document_generator import generate_funding_draft
-from database import save_query_to_postgres, get_recent_queries, clear_all_queries
-from gpt_recommender import build_gpt_prompt, extract_sources_from_response
-# Import ONLY comprehensive search module
-from expanded_dynamic_search import get_comprehensive_funding_results
-from styles import apply_modern_styling, create_modern_header, create_feature_box, create_funding_card
-from question_manager import ClarifyingQuestionsManager
+from src.core.config import OPENAI_API_KEY, PINECONE_API_KEY, PINECONE_ENV, get_openai_client
+from src.core.vector_search import query_funding_data
+from src.core.utils import present, program_name
+from src.core.document_generator import generate_funding_draft
+from src.core.database import save_query_to_postgres, get_recent_queries, clear_all_queries
+
+from src.core.gpt_recommender import build_gpt_prompt, extract_sources_from_response
+from src.agents.deep_researcher import run_deep_research
+from src.core.styles import apply_modern_styling, create_modern_header, create_feature_box, create_funding_card
+from src.core.question_manager import ClarifyingQuestionsManager
+from src.agents.grant_writer import grant_writer_app, GrantWriterState
+from langchain_core.messages import HumanMessage, AIMessage
 
 # ------------------ Setup ------------------
 st.set_page_config(
@@ -143,14 +149,27 @@ Respond clearly and helpfully:"""
         with st.spinner("🔍 Searching for funding opportunities..."):
             search_method = st.session_state.get("search_method", "💾 Database Search (fastest)")
             
-            if "Comprehensive Search" in search_method:
+            if "Deep Research" in search_method:
                 try:
-                    results = asyncio.run(get_comprehensive_funding_results(query, max_results=12))
-                    search_method_display = "Comprehensive Search (20+ sources)"
+                    with st.status("🕵️‍♂️ **Deep Research Agent Working...**", expanded=True) as status:
+                        st.write("🔍 Creating research plan...")
+                        final_answer = run_deep_research(query)
+                        st.write("✅ Research complete!")
+                        status.update(label="Deep Research Complete", state="complete", expanded=False)
+                    
+                    # Display the agent's direct answer
+                    with st.chat_message("assistant"):
+                        st.markdown(final_answer)
+                        st.info("ℹ️ This result comes from a live autonomous web search.")
+                    
+                    st.session_state.last_recommendation = final_answer
+                    st.session_state.chat_history.append({"role": "assistant", "content": final_answer})
+                    save_query_to_postgres(query, "Deep Research Agent", 1, final_answer)
+                    return "search_completed"
+
                 except Exception as e:
-                    st.warning(f"Comprehensive search failed: {e}. Using database search.")
-                    results = query_funding_data(query)
-                    search_method_display = "Database Search (fallback)"
+                    st.error(f"Deep Research failed: {e}")
+                    return "error"
             else:
                 results = query_funding_data(query)
                 search_method_display = "Database Search"
@@ -209,13 +228,20 @@ for key in [
     "current_funding_questions", "current_draft_questions", "enhanced_query",
     "waiting_for_clarification", "last_results", "show_draft_questions", 
     "follow_up_responses", "current_follow_up", "enhanced_processed", "direct_query_to_process",
-    "processed_original_query", "should_process_enhanced", "should_process_direct"
+    "processed_original_query", "should_process_enhanced", "should_process_direct",
+    # Grant Writer State
+    "grant_writer_active", "grant_writer_messages", "grant_writer_profile", "grant_writer_program"
 ]:
     if key not in st.session_state:
         if key == "chat_history":
             st.session_state[key] = []
+        # ... other existing inits ...
+        elif key == "grant_writer_active":
+            st.session_state[key] = False
+        elif key == "grant_writer_messages":
+            st.session_state[key] = []
         elif key == "search_method":
-            st.session_state[key] = "🚀 Comprehensive Search (20+ sources)"
+            st.session_state[key] = "💾 Database Search (fastest)"
         elif key == "ask_clarifying_questions":
             st.session_state[key] = True
         elif key == "show_draft_questions":
@@ -240,11 +266,11 @@ st.sidebar.markdown("### 🔍 Search Options")
 search_option = st.sidebar.radio(
     "Choose search method:",
     [
-        "🚀 Comprehensive Search (20+ sources)",
-        "💾 Database Search (fastest)"
+        "💾 Database Search (fastest)",
+        "🕵️‍♂️ Deep Research Agent (Autonomous Web Scraping)"
     ],
     index=0,
-    help="Comprehensive search includes ISB, NRW, FDB + 17 other EU/federal/regional/private funding sources"
+    help="Use Database Search for instant results from cached data, or Deep Research Agent for live web scraping."
 )
 
 # Store search preference
@@ -512,7 +538,8 @@ if st.session_state.last_recommendation:
                 program_name_match = re.search(r"#+\s*\d+\.\s+(.+?)\s*\(", block)
                 program_name = program_name_match.group(1) if program_name_match else f"Program {idx + 1}"
                 
-                if st.button(f"📝 Draft for {program_name[:20]}...", key=f"draft_{idx}"):
+                if st.button(f"📝 Interactive Draft for {program_name[:20]}...", key=f"draft_{idx}"):
+                    # Initialize Grant Writer Session
                     def extract_field(pattern):
                         match = re.search(pattern, block, re.DOTALL)
                         return match.group(1).strip() if match else None
@@ -524,82 +551,110 @@ if st.session_state.last_recommendation:
                         "eligibility": r"\*\*Eligibility\*\*:?\s*(.+)",
                         "amount": r"\*\*Amount\*\*:?\s*(.+)",
                         "deadline": r"\*\*Deadline\*\*:?\s*(.+)",
-                        "location": r"\*\*Location\*\*:?\s*(.+)",
-                        "contact": r"\*\*Contact\*\*:?\s*(.+)",
                     }.items():
                         value = extract_field(pattern)
-                        if value and value.lower() not in ["not specified", "information not found"]:
-                            metadata[field] = value
+                        metadata[field] = value if value else "Not specified"
+
+                    original_query = st.session_state.get("processed_original_query") or "Innovation project"
                     
-                    st.session_state.selected_funding_program = metadata
-                    st.session_state.selected_program_idx = idx
-                    st.session_state.selected_program_name = program_name
-                    
-                    if st.session_state.ask_clarifying_questions:
-                        original_query = (
-                            st.session_state.get("processed_original_query") or 
-                            st.session_state.get("original_query") or 
-                            "Innovation project"
-                        )
-                        
-                        if not original_query or original_query.strip() == "":
-                            original_query = "Innovation project"
-                            
-                        if questions_manager.should_ask_draft_questions(metadata, original_query):
-                            st.session_state.current_draft_questions = questions_manager.generate_draft_questions(metadata, original_query)
-                            st.session_state.show_draft_questions = True
-                        else:
-                            with st.spinner("🎯 Generating application draft..."):
-                                profile = {
-                                    "company_name": "Your Company",
-                                    "location": "Germany",
-                                    "industry": "Technology/Innovation",
-                                    "goals": "Innovation and research in technology",
-                                    "project_idea": original_query,
-                                    "funding_need": "Research and development funding"
-                                }
-                                
-                                try:
-                                    docx_data = generate_funding_draft(metadata, profile, client)
-                                    st.success("✅ Draft generated successfully!")
-                                    st.download_button(
-                                        label=f"📄 Download {program_name[:15]}... Draft",
-                                        data=docx_data,
-                                        file_name=f"funding_draft_{idx + 1}.docx",
-                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                        key=f"download_direct_{idx}"
-                                    )
-                                except Exception as e:
-                                    st.error(f"Error generating draft: {e}")
-                    else:
-                        with st.spinner("🎯 Generating application draft..."):
-                            original_query = (
-                                st.session_state.get("processed_original_query") or 
-                                st.session_state.get("original_query") or 
-                                "Innovation project"
-                            )
-                            
-                            profile = {
-                                "company_name": "Your Company",
-                                "location": "Germany",
-                                "industry": "Technology/Innovation", 
-                                "goals": "Innovation and research in technology",
-                                "project_idea": original_query,
-                                "funding_need": "Research and development funding"
-                            }
-                            
-                            try:
-                                docx_data = generate_funding_draft(metadata, profile, client)
-                                st.success("✅ Draft generated successfully!")
-                                st.download_button(
-                                    label=f"📄 Download {program_name[:15]}... Draft",
-                                    data=docx_data,
-                                    file_name=f"funding_draft_{idx + 1}.docx",
-                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    key=f"download_basic_{idx}"
-                                )
-                            except Exception as e:
-                                st.error(f"Error generating draft: {e}")
+                    # Store initial state for the agent
+                    st.session_state.grant_writer_active = True
+                    st.session_state.grant_writer_program = metadata
+                    st.session_state.grant_writer_profile = {
+                        "project_idea": original_query, 
+                        "company_name": "My Startup" # Placeholder, agent will ask if needed
+                    }
+                    st.session_state.grant_writer_messages = [] # Start fresh
+                    st.rerun()
+
+# ------------------ Grant Writer Interface ------------------
+if st.session_state.get("grant_writer_active"):
+    st.markdown("---")
+    st.markdown(f"### ✍️ Grant Writer Co-Pilot: {st.session_state.grant_writer_program.get('name', 'Application')}")
+    
+    # Run Agent Loop
+    if not st.session_state.grant_writer_messages:
+        # First Run
+        initial_state = {
+            "messages": [],
+            "funding_program": st.session_state.grant_writer_program,
+            "company_profile": st.session_state.grant_writer_profile,
+            "missing_info": [],
+            "draft_ready": False,
+            "final_docx": None
+        }
+        with st.spinner("🤖 Analyzing requirements..."):
+            result = grant_writer_app.invoke(initial_state)
+            st.session_state.grant_writer_messages = result['messages']
+            st.rerun()
+
+    # Display Chat
+    for msg in st.session_state.grant_writer_messages:
+        if isinstance(msg, AIMessage):
+            with st.chat_message("assistant", avatar="✍️"):
+                st.markdown(msg.content)
+        elif isinstance(msg, HumanMessage):
+            with st.chat_message("user"):
+                st.markdown(msg.content)
+
+    # Chat Input for Grant Writer
+    if prompt := st.chat_input("Answer the agent's question..."):
+        # Add user message
+        st.session_state.grant_writer_messages.append(HumanMessage(content=prompt))
+        
+        # Run Agent again
+        current_state = {
+            "messages": st.session_state.grant_writer_messages,
+            "funding_program": st.session_state.grant_writer_program,
+            "company_profile": st.session_state.grant_writer_profile,
+            "missing_info": [],
+            "draft_ready": False,
+            "final_docx": None
+        }
+        
+        with st.spinner("✍️ Thinking..."):
+            result = grant_writer_app.invoke(current_state)
+            
+            # Check if draft is ready
+            if result.get("draft_ready"):
+                st.success("🎉 Information complete! Generating your document...")
+                # Call the actual generator
+                from src.core.document_generator import generate_funding_draft
+                from src.core.config import get_openai_client
+                
+                # Combine all chat context into a rich profile
+                full_context = "\n".join([m.content for m in result['messages']])
+                rich_profile = st.session_state.grant_writer_profile.copy()
+                rich_profile['interview_context'] = full_context
+                
+                # Get the LAST message (which is the draft text)
+                last_agent_message = result['messages'][-1].content
+                
+                # Verify it's not the "READY_TO_DRAFT" flag (just in case)
+                if last_agent_message.strip() == "READY_TO_DRAFT":
+                    # Fallback: Use the previous message or generate fresh
+                    docx = generate_funding_draft(st.session_state.grant_writer_program, rich_profile, get_openai_client())
+                else:
+                    # Use the text exactly as shown in chat
+                    docx = generate_funding_draft(st.session_state.grant_writer_program, rich_profile, get_openai_client(), content=last_agent_message)
+                
+                st.download_button(
+                    label="📄 Download Application Draft",
+                    data=docx,
+                    file_name="grant_application.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+                if st.button("❌ Close Grant Writer"):
+                    st.session_state.grant_writer_active = False
+                    st.rerun()
+            else:
+                # Update messages with agent response
+                st.session_state.grant_writer_messages = result['messages']
+                st.rerun()
+            
+    if st.button("❌ Cancel Draft"):
+        st.session_state.grant_writer_active = False
+        st.rerun()
 
     # Show clarifying questions for drafts if enabled
     if st.session_state.get("show_draft_questions"):

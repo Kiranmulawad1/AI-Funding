@@ -49,32 +49,24 @@ A comprehensive system that automates the discovery of German public funding opp
 
 ## 📂 Project Structure
 
-```
 AI-Funding/
-├── 1_scraping/                    # Web scraping modules
-│   ├── foerderdatenbank/         # Federal funding database scraper
-│   ├── isb/                      # ISB Rhineland-Palatinate scraper  
-│   └── nrweuropa/               # NRW Europa cascade funding scraper
-├── 2_preprocessing/              # Data cleaning and merging
-│   └── merging.ipynb            # Standardizes and combines datasets
-├── 3_embeddings_query/          # Vector processing and search
-│   ├── embedding_uploader.ipynb # Creates Pinecone embeddings
-│   ├── funding_query_engine.py  # Core search functionality
-│   └── query_openai.ipynb      # Query processing pipeline
-├── 4_streamlit_app/             # Web application
-│   ├── app_streamlit.py         # Main Streamlit application
-│   ├── config.py               # Configuration management
-│   ├── rag_core.py             # RAG implementation
-│   ├── gpt_recommender.py      # AI recommendation engine
-│   ├── docs_generator.py       # Document generation
-│   ├── memory.py               # PostgreSQL integration
-│   └── utils.py                # Utility functions
-├── company_profile_samples/      # Sample company profiles for testing
-├── data/                        # Processed datasets
-│   └── merged_funding_data.csv  # Final consolidated funding data
-├── requirements.txt             # Python dependencies
-└── README.md                   # Project documentation
-```
+├── notebooks/                     # Jupyter notebooks
+│   ├── scraping/                 # Data collection notebooks
+│   ├── preprocessing/            # Cleaning and translation
+│   └── embeddings/               # Vector database generation
+├── src/                          # Application source code
+│   ├── app.py                    # Main Streamlit application
+│   ├── config.py                 # Configuration management
+│   ├── search_engine.py          # Search logic
+│   └── ...                       # Other modules
+├── data/                         # Data directory
+│   ├── raw/                      # Raw scraped data
+│   ├── interim/                  # Intermediate processed data
+│   └── processed/                # Final datasets
+│       └── merged_funding_data.csv
+├── requirements.txt              # Python dependencies
+└── README.md                     # Project documentation
+
 
 ## 🛠️ Installation & Setup
 
@@ -126,35 +118,40 @@ CREATE TABLE funding_queries (
 ### 5. Run Data Pipeline
 
 #### Step 1: Scrape Data
+#### Step 1: Scrape Data
 ```bash
 # Run scraping notebooks for each source
-jupyter notebook 1_scraping/foerderdatenbank/foerderdatenbank_scraping_data.ipynb
-jupyter notebook 1_scraping/isb/isb_scraping_data.ipynb  
-jupyter notebook 1_scraping/nrweuropa/nrweuropa_scraping_data.ipynb
+jupyter notebook notebooks/scraping/foerderdatenbank_scraping_data.ipynb
+jupyter notebook notebooks/scraping/isb_scraping_data.ipynb  
+jupyter notebook notebooks/scraping/nrweuropa_scraping_data.ipynb
 ```
 
 #### Step 2: Translate Content
+#### Step 2: Translate Content
 ```bash
 # Translate German content to English
-jupyter notebook 1_scraping/*/translation_english.ipynb
+jupyter notebook notebooks/preprocessing/*_translation_english.ipynb
 ```
 
 #### Step 3: Process & Merge
+#### Step 3: Process & Merge
 ```bash
 # Clean and combine all datasets
-jupyter notebook 2_preprocessing/merging.ipynb
+jupyter notebook notebooks/preprocessing/merging.ipynb
 ```
 
 #### Step 4: Create Embeddings
+#### Step 4: Create Embeddings
 ```bash
 # Generate vector embeddings and upload to Pinecone
-jupyter notebook 3_embeddings_query/embedding_uploader.ipynb
+jupyter notebook notebooks/embeddings/embedding_uploader.ipynb
 ```
 
 ### 6. Launch Application
+### 6. Launch Application
 ```bash
-cd 4_streamlit_app
-streamlit run app_streamlit.py
+# Run using the new source directory
+streamlit run src/app.py
 ```
 
 ## 🎮 Usage

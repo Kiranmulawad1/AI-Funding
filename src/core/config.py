@@ -12,7 +12,7 @@ load_dotenv()
 # -------- App paths --------
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parent
-DEFAULT_DATA_CSV = PROJECT_ROOT / "data" / "merged_funding_data.csv"
+DEFAULT_DATA_CSV = PROJECT_ROOT / "data" / "processed" / "merged_funding_data.csv"
 
 # -------- Environment Variables --------
 POSTGRES_URL = os.getenv("POSTGRES_URL")

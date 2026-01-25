@@ -159,7 +159,7 @@
 
 from typing import List, Dict
 import streamlit as st
-from config import get_openai_client
+from src.core.config import get_openai_client
 
 class ClarifyingQuestionsManager:
     def __init__(self):

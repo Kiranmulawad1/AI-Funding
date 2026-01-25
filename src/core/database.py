@@ -1,6 +1,6 @@
 import psycopg2
 from datetime import datetime
-from config import POSTGRES_URL
+from src.core.config import POSTGRES_URL
 
 
 def save_query_to_postgres(query, source, result_count, recommendation):

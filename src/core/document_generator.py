@@ -29,15 +29,20 @@ Use the following company profile and the funding program details to generate a 
 
 Be professional and compelling."""
 
-def generate_funding_draft(metadata, profile, llm_client):
-    prompt = build_draft_prompt(profile, metadata)
-    
-    response = llm_client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    
-    draft_text = response.choices[0].message.content.strip()
+def generate_funding_draft(metadata, profile, llm_client, content: str = None):
+    if content:
+        # If content provides, use it directly (bypass LLM)
+        draft_text = content
+    else:
+        # Otherwise generate it
+        prompt = build_draft_prompt(profile, metadata)
+        
+        response = llm_client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        draft_text = response.choices[0].message.content.strip()
     
     doc = Document()
     doc.add_heading("Funding Application Draft", 0)

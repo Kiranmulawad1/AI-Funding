@@ -1,8 +1,8 @@
 # search_engine.py
 import pandas as pd
 from pinecone import Pinecone
-from config import PINECONE_API_KEY, INDEX_NAME, NAMESPACE, get_openai_client
-from utils import safe_parse_deadline
+from src.core.config import PINECONE_API_KEY, INDEX_NAME, NAMESPACE, get_openai_client
+from src.core.utils import safe_parse_deadline
 
 client = get_openai_client()
 pc = Pinecone(api_key=PINECONE_API_KEY)

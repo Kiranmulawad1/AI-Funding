@@ -1,0 +1,67 @@
+name: Auto Versioning and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for tagging
+
+      - name: Finalize Version Tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+      - name: 🤖 Agent Initialization
+        run: |
+          echo "::notice title=Agent Status::Initializing Deployment Protocols..."
+          echo "🤖 Agentic Assistant v1.0 online."
+          echo "🎯 Target: PyPI Registry"
+
+      - name: 📥 Install Tooling (uv)
+        uses: astral-sh/setup-uv@v2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: 🔨 Agent Build Phase
+        run: |
+          echo "::group::🤖 Building Artifacts"
+          echo "Compiling source distribution and wheel..."
+          uv build
+          echo "::endgroup::"
+          echo "::notice title=Build Status::✅ Architecture Built Successfully"
+
+      - name: 🚀 Agent Deployment Phase
+        run: |
+          echo "::group::🤖 Publishing to PyPI"
+          echo "Authenticating secure uplink..."
+          echo "Transmitting packages..."
+          # uv publish
+          echo "⚠️ uv publish is commented out safely. Uncomment if you have set UV_PUBLISH_TOKEN."
+          echo "::endgroup::"
+          echo "::notice title=Deployment Status::✅ Package Built (Publish Skipped)"
+          echo "🤖 Mission Complete. Agent signing off."
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.UV_PUBLISH_TOKEN }}
