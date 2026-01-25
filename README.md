@@ -78,6 +78,21 @@ uv run streamlit run src/app.py
 
 Visit `http://localhost:8501` in your browser.
 
+### Option 3: Docker (Easiest Deployment)
+
+```bash
+# Using docker-compose (recommended)
+docker-compose up
+
+# Or build and run manually
+docker build -t ai-funding-agents .
+docker run -p 8501:8501 \
+  -e OPENAI_API_KEY=your-key \
+  ai-funding-agents
+```
+
+Visit `http://localhost:8501` in your browser.
+
 ---
 
 ## 📖 Usage

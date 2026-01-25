@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment files (should use docker secrets or env vars)
+.env
+.env.local
+
+# Documentation
+*.md
+!README.md
+
+# CI/CD
+.github/
+
+# Notebooks (not needed in production)
+notebooks/
+*.ipynb
+
+# Data (mount as volume instead)
+data/raw/
+data/interim/
+
+# Tests
+tests/
+pytest.ini
+.pytest_cache/
+
+# Artifacts
+.gemini/
+
+# Logs
+*.log
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
