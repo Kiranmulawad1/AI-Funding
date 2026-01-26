@@ -1,21 +1,10 @@
-# Multi-stage build for optimal image size
-FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
+# Use Python base image 
+FROM python:3.13-slim-bookworm
 
-# Set working directory
-WORKDIR /app
-
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
-
-# Install dependencies
-RUN uv sync --frozen --no-install-project
-
-# Final stage
-FROM python:3.11-slim-bookworm
-
-# Install system dependencies for Playwright
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
     gnupg \
     ca-certificates \
     fonts-liberation \
@@ -39,22 +28,29 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# Set environment variables for uv to use system python
+ENV UV_PYTHON=/usr/local/bin/python3
+ENV PATH="/root/.local/bin:$PATH"
+
 # Set working directory
 WORKDIR /app
 
-# Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies using specific python
+RUN uv sync --frozen
 
 # Copy application code
 COPY src/ ./src/
 COPY data/ ./data/
-COPY pyproject.toml ./
 
 # Install Playwright browsers
-RUN /app/.venv/bin/playwright install chromium
+RUN uv run playwright install chromium
 
 # Set environment variables
-ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
 # Expose Streamlit port
@@ -64,5 +60,5 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8501/_stcore/health || exit 1
 
-# Run the application
-CMD ["streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run the application (using PORT env var for cloud compatibility)
+CMD streamlit run src/app.py --server.port=${PORT:-8501} --server.address=0.0.0.0

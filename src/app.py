@@ -36,15 +36,14 @@ client = get_openai_client()
 questions_manager = ClarifyingQuestionsManager()
 
 # ------------------ ENV Check ------------------
-missing_keys = [k for k, v in {
-    "OPENAI_API_KEY": OPENAI_API_KEY,
-    "PINECONE_API_KEY": PINECONE_API_KEY,
-    "PINECONE_ENV": PINECONE_ENV,
-}.items() if not v]
-
-if missing_keys:
-    st.error(f"Missing environment variables: {', '.join(missing_keys)}")
+if not OPENAI_API_KEY:
+    st.error("Missing required environment variable: OPENAI_API_KEY")
+    st.info("Please set this in your .env file or environment.")
     st.stop()
+
+# Warn about Pinecone but don't stop (Deep Research still works)
+if not PINECONE_API_KEY or not PINECONE_ENV:
+    st.sidebar.warning("⚠️ Pinecone keys missing. Database Search will be disabled.")
 
 # ------------------ Query Processor Class (FIXES DOUBLE QUERY) ------------------
 class QueryProcessor:

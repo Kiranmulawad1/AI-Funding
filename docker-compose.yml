@@ -10,6 +10,7 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PINECONE_API_KEY=${PINECONE_API_KEY:-}
+      - PINECONE_ENV=${PINECONE_ENV:-}
       - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-funding-search}
       - PINECONE_NAMESPACE=${PINECONE_NAMESPACE:-openai-v3}
       - POSTGRES_URL=${POSTGRES_URL:-}
